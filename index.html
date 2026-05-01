@@ -1,0 +1,1439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planta IA — ESPOL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Plus+Jakarta+Sans:wght@400;500;600;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --ink: #07080f;
+  --surface: #0f1018;
+  --card: #13141e;
+  --card2: #1a1b28;
+  --cyan: #22d3ee;
+  --cyan-dim: rgba(34,211,238,0.10);
+  --violet: #a78bfa;
+  --lime: #86efac;
+  --orange: #fb923c;
+  --text: #dde1f0;
+  --muted: #6b7280;
+  --border: rgba(255,255,255,0.07);
+  --border-active: rgba(34,211,238,0.3);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--ink);
+  color: var(--text);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+#bg-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.2;
+  pointer-events: none;
+}
+
+/* NAV */
+nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 5vw;
+  height: 64px;
+  background: rgba(7,8,15,0.9);
+  backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+.nav-steps { display: flex; gap: 4px; }
+
+.nav-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-dot:hover { border-color: var(--cyan); color: var(--cyan); }
+.nav-dot.active { background: var(--cyan); border-color: var(--cyan); color: var(--ink); }
+
+.progress-bar {
+  position: fixed;
+  top: 64px; left: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--violet));
+  z-index: 99;
+  width: 0%;
+  transition: width 0.15s;
+}
+
+main { position: relative; z-index: 1; }
+
+/* HERO */
+.hero {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 100px 8vw 80px;
+  position: relative;
+  overflow: hidden;
+}
+
+.hero-glow {
+  position: absolute;
+  width: 700px; height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34,211,238,0.06) 0%, transparent 70%);
+  top: -60px; right: -150px;
+  pointer-events: none;
+}
+
+.hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.15em;
+  color: var(--cyan);
+  background: var(--cyan-dim);
+  border: 1px solid var(--border-active);
+  padding: 6px 14px;
+  border-radius: 100px;
+  margin-bottom: 2.2rem;
+  opacity: 0;
+  animation: fadeUp 0.7s 0.2s forwards;
+}
+
+.hero-tag-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: pulse 2s infinite;
+}
+
+.hero h1 {
+  font-size: clamp(3rem, 8.5vw, 7rem);
+  font-weight: 800;
+  line-height: 0.96;
+  letter-spacing: -0.035em;
+  color: #fff;
+  max-width: 820px;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.4s forwards;
+}
+
+.hero h1 em {
+  font-style: normal;
+  color: var(--cyan);
+}
+
+.hero-desc {
+  font-size: 1.05rem;
+  color: var(--muted);
+  max-width: 540px;
+  margin-top: 2rem;
+  line-height: 1.8;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.6s forwards;
+}
+
+.hero-cta {
+  margin-top: 2.5rem;
+  opacity: 0;
+  animation: fadeUp 0.8s 0.8s forwards;
+}
+
+.btn-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: var(--cyan);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.25s;
+  text-decoration: none;
+}
+
+.btn-start:hover {
+  background: #67e8f9;
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(34,211,238,0.22);
+}
+
+.hero-stats {
+  margin-top: 5rem;
+  display: flex;
+  gap: 3rem;
+  flex-wrap: wrap;
+  opacity: 0;
+  animation: fadeUp 0.8s 1s forwards;
+}
+
+.hero-stat {
+  border-left: 2px solid var(--border-active);
+  padding-left: 1rem;
+}
+
+.hero-stat-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #fff;
+  display: block;
+  line-height: 1.2;
+}
+
+.hero-stat-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+/* FLOW DIAGRAM */
+.flow-section {
+  padding: 60px 5vw 20px;
+}
+
+.flow-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--muted);
+  text-transform: uppercase;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.flow-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  text-align: center;
+  min-width: 155px;
+  flex-shrink: 0;
+  transition: all 0.25s;
+  cursor: pointer;
+}
+
+.flow-card:hover { border-color: rgba(255,255,255,0.14); background: var(--card2); }
+.flow-card.active { border-color: var(--cyan); background: var(--cyan-dim); }
+
+.flow-icon { font-size: 1.5rem; margin-bottom: 8px; }
+
+.flow-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  color: var(--cyan);
+  margin-bottom: 5px;
+}
+
+.flow-title { font-size: 0.8rem; font-weight: 700; color: #fff; }
+
+.flow-arrow {
+  padding: 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+/* EXPLORER */
+.explorer {
+  padding: 60px 5vw 100px;
+}
+
+.explorer-head {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.explorer-head h2 {
+  font-size: clamp(1.7rem, 3.5vw, 2.6rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.03em;
+  margin-bottom: 0.5rem;
+}
+
+.explorer-head p { font-size: 0.95rem; color: var(--muted); }
+
+/* TABS */
+.step-tabs {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+
+.step-tab {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 18px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all 0.25s;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--muted);
+  font-family: inherit;
+}
+
+.step-tab:hover { border-color: rgba(255,255,255,0.14); color: var(--text); }
+.step-tab.active { background: var(--cyan-dim); border-color: var(--border-active); color: var(--cyan); }
+
+.tab-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  font-weight: 600;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.step-tab.active .tab-num { background: var(--cyan); color: var(--ink); }
+
+/* PANEL */
+.step-panel { display: none; animation: fadeIn 0.35s ease; }
+.step-panel.active { display: block; }
+
+.panel-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  align-items: start;
+}
+
+/* VISUAL */
+.panel-visual {
+  position: relative;
+  aspect-ratio: 4/3;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.panel-visual img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.panel-visual::before,
+.panel-visual::after {
+  content: '';
+  position: absolute;
+  width: 16px; height: 16px;
+  border-color: var(--cyan);
+  border-style: solid;
+  opacity: 0.45;
+  z-index: 2;
+}
+.panel-visual::before { top: 10px; left: 10px; border-width: 1.5px 0 0 1.5px; }
+.panel-visual::after  { bottom: 10px; right: 10px; border-width: 0 1.5px 1.5px 0; }
+
+.scan-bar {
+  position: absolute;
+  left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+  opacity: 0;
+  animation: scanV 3.5s linear infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.panel-visual:hover .scan-bar { opacity: 0.5; }
+
+.img-ph {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.3;
+}
+
+.img-ph span {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.status-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(7,8,15,0.9);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  color: var(--lime);
+  z-index: 4;
+}
+
+.sdot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--lime);
+  animation: pulse 2s infinite;
+}
+
+/* PANEL CONTENT */
+.panel-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0.9rem;
+}
+
+.panel-num {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: var(--cyan);
+  background: var(--cyan-dim);
+  padding: 3px 9px;
+  border-radius: 4px;
+}
+
+.panel-cat {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.panel-content h3 {
+  font-size: clamp(1.4rem, 2.8vw, 2rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 0.9rem;
+}
+
+.panel-intro {
+  font-size: 0.92rem;
+  color: var(--muted);
+  line-height: 1.8;
+  margin-bottom: 1.4rem;
+  padding: 14px 16px;
+  background: var(--card);
+  border-radius: 10px;
+  border-left: 3px solid var(--cyan);
+}
+
+.comp-label {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+/* ACCORDION */
+.comp-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 7px;
+  transition: border-color 0.25s;
+}
+
+.comp-item:hover { border-color: rgba(255,255,255,0.11); }
+.comp-item.open { border-color: var(--border-active); }
+
+.comp-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 14px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.comp-ico {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 0.95rem;
+}
+
+.ico-c { background: rgba(34,211,238,0.1); }
+.ico-v { background: rgba(167,139,250,0.1); }
+.ico-l { background: rgba(134,239,172,0.1); }
+.ico-o { background: rgba(251,146,60,0.1); }
+
+.comp-name {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #fff;
+  flex: 1;
+  line-height: 1.3;
+}
+
+.comp-item.open .comp-name { color: var(--cyan); }
+
+.comp-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.57rem;
+  letter-spacing: 0.07em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--card2);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.comp-chev {
+  color: var(--muted);
+  transition: transform 0.25s;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.comp-item.open .comp-chev { transform: rotate(180deg); color: var(--cyan); }
+
+.comp-body {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
+.comp-body-in {
+  padding: 2px 14px 14px 58px;
+  font-size: 0.875rem;
+  color: var(--muted);
+  line-height: 1.75;
+}
+
+/* PANEL NAV */
+.panel-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+}
+
+.pnav-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.pnav-btn:hover { border-color: rgba(255,255,255,0.14); color: var(--text); }
+.pnav-btn.next { background: var(--cyan-dim); border-color: var(--border-active); color: var(--cyan); }
+.pnav-btn.next:hover { background: rgba(34,211,238,0.18); }
+
+.pnav-counter {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.15em;
+  color: var(--muted);
+}
+
+/* DIVIDER */
+.divider { height: 1px; background: var(--border); margin: 0 5vw; }
+
+/* QUIZ */
+.quiz-section {
+  padding: 80px 8vw;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.quiz-section h2 {
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.03em;
+  text-align: center;
+  margin-bottom: 0.4rem;
+}
+
+.quiz-sub {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.95rem;
+  margin-bottom: 2.5rem;
+}
+
+.quiz-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.8rem;
+  margin-bottom: 14px;
+}
+
+.quiz-q {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 1.1rem;
+  line-height: 1.5;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.quiz-qn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px; height: 22px;
+  min-width: 22px;
+  background: var(--cyan-dim);
+  border-radius: 50%;
+  color: var(--cyan);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.6rem;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.quiz-opts {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.quiz-opt {
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--text);
+  background: var(--surface);
+  transition: all 0.2s;
+  text-align: left;
+  line-height: 1.4;
+}
+
+.quiz-opt:hover { border-color: rgba(255,255,255,0.14); background: var(--card2); }
+.quiz-opt.correct { border-color: var(--lime); background: rgba(134,239,172,0.07); color: var(--lime); }
+.quiz-opt.wrong   { border-color: #f87171; background: rgba(248,113,113,0.07); color: #f87171; }
+
+.quiz-fb {
+  margin-top: 10px;
+  font-size: 0.85rem;
+  color: var(--muted);
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--surface);
+  display: none;
+  line-height: 1.65;
+  border-left: 3px solid var(--muted);
+}
+
+.quiz-fb.show { display: block; }
+
+/* FOOTER */
+footer {
+  padding: 100px 8vw 60px;
+  position: relative;
+  overflow: hidden;
+}
+
+.footer-glow {
+  position: absolute;
+  width: 500px; height: 300px;
+  background: radial-gradient(ellipse, rgba(34,211,238,0.05), transparent 70%);
+  top: 0; left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+footer h2 {
+  font-size: clamp(2rem, 5vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: #fff;
+  line-height: 1.06;
+  margin-bottom: 1.2rem;
+  max-width: 640px;
+}
+
+.footer-tag {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.18em;
+  color: var(--violet);
+  text-transform: uppercase;
+  margin-bottom: 1.4rem;
+}
+
+footer p {
+  color: var(--muted);
+  font-size: 0.97rem;
+  line-height: 1.8;
+  margin-bottom: 2.5rem;
+  max-width: 520px;
+}
+
+.btn-espol {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 26px;
+  border: 1.5px solid var(--cyan);
+  color: var(--cyan);
+  font-weight: 700;
+  font-size: 0.875rem;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.25s;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+.btn-espol:hover {
+  background: var(--cyan);
+  color: var(--ink);
+  box-shadow: 0 8px 28px rgba(34,211,238,0.18);
+}
+
+.footer-bottom {
+  margin-top: 80px;
+  padding-top: 22px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.footer-bottom p {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ANIMATIONS */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.45; transform: scale(0.82); }
+}
+@keyframes scanV {
+  0%   { top: -3px; opacity: 0; }
+  8%   { opacity: 0.5; }
+  92%  { opacity: 0.5; }
+  100% { top: 100%; opacity: 0; }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s cubic-bezier(0.16,1,0.3,1), transform 0.7s cubic-bezier(0.16,1,0.3,1);
+}
+.reveal.visible { opacity: 1; transform: none; }
+.rd1 { transition-delay: 0.1s; }
+.rd2 { transition-delay: 0.2s; }
+.rd3 { transition-delay: 0.3s; }
+
+/* RESPONSIVE */
+@media (max-width: 860px) {
+  .panel-grid { grid-template-columns: 1fr; }
+  .quiz-opts { grid-template-columns: 1fr; }
+  .nav-steps { display: none; }
+}
+@media (max-width: 560px) {
+  .hero { padding: 90px 6vw 60px; }
+  .hero-stats { gap: 1.5rem; }
+  .step-tab { padding: 8px 13px; font-size: 0.8rem; }
+  footer { padding: 80px 6vw 50px; }
+  .footer-bottom { flex-direction: column; text-align: center; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="progress-bar" id="progress"></div>
+
+<nav>
+  <div class="nav-logo">PLANTA&nbsp;IA&nbsp;//&nbsp;ESPOL</div>
+  <div class="nav-steps">
+    <button class="nav-dot active" onclick="goStep(0)" title="Lavado">1</button>
+    <button class="nav-dot" onclick="goStep(1)" title="Tablero">2</button>
+    <button class="nav-dot" onclick="goStep(2)" title="Visión IA">3</button>
+    <button class="nav-dot" onclick="goStep(3)" title="Sellado">4</button>
+  </div>
+</nav>
+
+<main>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-glow"></div>
+  <div class="hero-tag"><span class="hero-tag-dot"></span>Proyecto de Ingeniería — ESPOL 2025</div>
+  <h1>La Fábrica de<br>Frutas <em>Inteligente</em></h1>
+  <p class="hero-desc">
+    Una planta que lava, inspecciona y empaqueta mangos automáticamente usando inteligencia artificial,
+    visión por computadora y control industrial. Construida por estudiantes de la ESPOL para
+    transformar la agricultura del Ecuador.
+  </p>
+  <div class="hero-cta">
+    <a href="#explorer" class="btn-start">
+      <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M5.5 3.5l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Explorar la planta
+    </a>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat">
+      <span class="hero-stat-num">4</span>
+      <span class="hero-stat-label">Etapas de proceso</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">YOLOv11</span>
+      <span class="hero-stat-label">Modelo de visión IA</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">100%</span>
+      <span class="hero-stat-label">Agua recirculada</span>
+    </div>
+    <div class="hero-stat">
+      <span class="hero-stat-num">ESP32</span>
+      <span class="hero-stat-label">Microcontrolador</span>
+    </div>
+  </div>
+</section>
+
+<!-- FLOW DIAGRAM -->
+<div class="divider"></div>
+<div class="flow-section reveal">
+  <p class="flow-label">Flujo del proceso — Haz clic en una etapa para explorarla</p>
+  <div class="flow-row">
+    <div class="flow-card active" onclick="goStep(0)">
+      <div class="flow-icon">💧</div>
+      <div class="flow-num">01</div>
+      <div class="flow-title">Lavado y alimentación</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-card" onclick="goStep(1)">
+      <div class="flow-icon">⚡</div>
+      <div class="flow-num">02</div>
+      <div class="flow-title">Tablero de control</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-card" onclick="goStep(2)">
+      <div class="flow-icon">👁</div>
+      <div class="flow-num">03</div>
+      <div class="flow-title">Visión artificial</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-card" onclick="goStep(3)">
+      <div class="flow-icon">📦</div>
+      <div class="flow-num">04</div>
+      <div class="flow-title">Empaque y sellado</div>
+    </div>
+  </div>
+</div>
+<div class="divider" style="margin-top:40px;"></div>
+
+<!-- EXPLORER -->
+<section class="explorer" id="explorer">
+  <div class="explorer-head reveal">
+    <h2>Explora cada etapa</h2>
+    <p>Selecciona una etapa para ver sus componentes y entender cómo funcionan</p>
+  </div>
+
+  <div class="step-tabs reveal rd1">
+    <button class="step-tab active" onclick="goStep(0)"><span class="tab-num">1</span>Lavado</button>
+    <button class="step-tab" onclick="goStep(1)"><span class="tab-num">2</span>Tablero</button>
+    <button class="step-tab" onclick="goStep(2)"><span class="tab-num">3</span>Visión IA</button>
+    <button class="step-tab" onclick="goStep(3)"><span class="tab-num">4</span>Sellado</button>
+  </div>
+
+  <!-- PANEL 1: LAVADO -->
+  <div class="step-panel active" id="panel-0">
+    <div class="panel-grid">
+      <div class="panel-visual">
+        <div class="scan-bar"></div>
+        <!-- REEMPLAZO POR VIDEO MP4 -->
+  <video autoplay loop muted playsinline>
+    <source src="video_banda_elevadora.mp4" type="video/mp4">
+    Tu navegador no soporta videos.
+  </video>
+  <!-- FIN DEL REEMPLAZO -->
+        <div class="status-badge"><span class="sdot"></span>BOMBA ACTIVA</div>
+      </div>
+      <div class="panel-content">
+        <div class="panel-meta">
+          <span class="panel-num">ETAPA 01</span>
+          <span class="panel-cat">Hidráulica y alimentación</span>
+        </div>
+        <h3>El jacuzzi de los mangos</h3>
+        <p class="panel-intro">
+          Todo empieza aquí. Los mangos se sumergen en la tina para quitarles el polvo del campo.
+          Una bomba hace circular el agua — y lo mejor: esa misma agua se filtra y se reutiliza. Cero desperdicio.
+        </p>
+        <p class="comp-label">Componentes del sistema</p>
+
+        <div class="comp-item" id="c0-0">
+          <div class="comp-header" onclick="toggleComp('c0-0')">
+            <div class="comp-ico ico-c">💧</div>
+            <span class="comp-name">Bomba Centrífuga</span>
+            <span class="comp-tag">ACTUADOR</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              Usa la fuerza del giro (fuerza centrífuga) para mover el agua con presión constante, como la bomba de una piscina. Aspira el agua por el centro y la expulsa a alta velocidad, garantizando que todos los mangos reciban el mismo tiempo y fuerza de limpieza.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c0-1">
+          <div class="comp-header" onclick="toggleComp('c0-1')">
+            <div class="comp-ico ico-l">🔁</div>
+            <span class="comp-name">Sistema de Recirculación</span>
+            <span class="comp-tag">PROCESO</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              En lugar de gastar agua nueva en cada ciclo, el sistema filtra el agua usada y la devuelve a la tina. Este principio de eficiencia de recursos reduce hasta el 80% del consumo de agua frente a un lavado convencional.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c0-2">
+          <div class="comp-header" onclick="toggleComp('c0-2')">
+            <div class="comp-ico ico-v">📐</div>
+            <span class="comp-name">Banda Elevadora Inclinada</span>
+            <span class="comp-tag">MECÁNICA</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              Una banda con listones inclinados que saca los mangos del agua y los eleva hacia la siguiente estación. El ángulo está calculado para que las frutas no resbalen y para que escurra el exceso de agua antes de llegar a la banda principal de inspección.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-nav">
+      <button class="pnav-btn" style="visibility:hidden">← Anterior</button>
+      <span class="pnav-counter">01 / 04</span>
+      <button class="pnav-btn next" onclick="goStep(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 2: TABLERO -->
+  <div class="step-panel" id="panel-1">
+    <div class="panel-grid">
+      <div class="panel-visual">
+        <div class="scan-bar"></div>
+        <img src="tablero.jpeg" alt="Tablero eléctrico">
+        <div class="status-badge"><span class="sdot"></span>PLC ONLINE</div>
+      </div>
+      <div class="panel-content">
+        <div class="panel-meta">
+          <span class="panel-num">ETAPA 02</span>
+          <span class="panel-cat">Control eléctrico e industrial</span>
+        </div>
+        <h3>El cerebro y los nervios</h3>
+        <p class="panel-intro">
+          Ese gabinete metálico con luces y botones es el centro de mando. Desde aquí se decide qué enciende,
+          qué se apaga, y cómo reacciona la máquina ante cada situación. Puede operarse en modo manual o automático.
+        </p>
+        <p class="comp-label">Componentes del sistema</p>
+
+        <div class="comp-item" id="c1-0">
+          <div class="comp-header" onclick="toggleComp('c1-0')">
+            <div class="comp-ico ico-c">🧠</div>
+            <span class="comp-name">PLC Siemens LOGO! 8</span>
+            <span class="comp-tag">CEREBRO</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              PLC significa "Controlador Lógico Programable". Es una pequeña computadora industrial que recibe las señales de los botones y ejecuta el programa que le instalamos. Decide exactamente cuándo encender cada motor, cuándo activar la bomba y cómo comportarse en modo manual vs. automático. Es el verdadero cerebro de toda la planta.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c1-1">
+          <div class="comp-header" onclick="toggleComp('c1-1')">
+            <div class="comp-ico ico-l">🔘</div>
+            <span class="comp-name">Pulsadores de Marcha y Paro</span>
+            <span class="comp-tag">INTERFAZ</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              Son los botones de inicio (verde) y parada (negro) que el operador presiona. Envían una señal eléctrica al PLC para que active o detenga cada subsistema. Hay pulsadores independientes para la bomba y para los motores de las bandas transportadoras.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c1-2">
+          <div class="comp-header" onclick="toggleComp('c1-2')">
+            <div class="comp-ico ico-o">🛑</div>
+            <span class="comp-name">Parada de Emergencia</span>
+            <span class="comp-tag">SEGURIDAD</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              El botón rojo grande con forma de seta. Su mecanismo es puramente mecánico: al presionarlo, corta físicamente el circuito eléctrico principal sin importar lo que esté haciendo el PLC. Es la medida de seguridad más importante: protege a las personas ante cualquier falla. Para reactivarlo, se gira para desbloquearlo.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c1-3">
+          <div class="comp-header" onclick="toggleComp('c1-3')">
+            <div class="comp-ico ico-v">⚡</div>
+            <span class="comp-name">Contactores, Relés y Breakers</span>
+            <span class="comp-tag">PROTECCIÓN</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              Los <strong style="color:var(--text)">contactores</strong> son interruptores controlados eléctricamente: permiten que la pequeña señal del PLC active motores que consumen mucha más energía. Los <strong style="color:var(--text)">breakers</strong> son los guardianes: si detectan exceso de corriente, se disparan solos para evitar que los cables se sobrecalienten. Los <strong style="color:var(--text)">relés</strong> amplían la capacidad de control, actuando como intermediarios entre señales débiles y cargas eléctricas grandes.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-nav">
+      <button class="pnav-btn" onclick="goStep(0)">← Anterior</button>
+      <span class="pnav-counter">02 / 04</span>
+      <button class="pnav-btn next" onclick="goStep(2)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 3: VISIÓN IA -->
+  <div class="step-panel" id="panel-2">
+    <div class="panel-grid">
+      <div class="panel-visual">
+        <img src="camara_ia.jpeg" alt="Visión artificial">
+        <div class="status-badge"><span class="sdot"></span>MODELO ACTIVO</div>
+      </div>
+      <div class="panel-content">
+        <div class="panel-meta">
+          <span class="panel-num">ETAPA 03</span>
+          <span class="panel-cat">Inteligencia artificial</span>
+        </div>
+        <h3>El ojo que nunca descansa</h3>
+        <p class="panel-intro">
+          Una cámara analiza cada mango que pasa por la banda transportadora. Un algoritmo de IA decide
+          en fracciones de segundo si la fruta está en buen estado o tiene defectos. Nunca se cansa, nunca pierde un detalle.
+        </p>
+        <p class="comp-label">Componentes del sistema</p>
+
+        <div class="comp-item" id="c2-0">
+          <div class="comp-header" onclick="toggleComp('c2-0')">
+            <div class="comp-ico ico-c">📸</div>
+            <span class="comp-name">Cámara de Inspección</span>
+            <span class="comp-tag">SENSOR</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              Captura imágenes en tiempo real de cada fruta que pasa por debajo. Las imágenes se envían instantáneamente a la computadora que corre el modelo de IA. La velocidad de captura está sincronizada con la velocidad de la banda para que no se pierda ninguna fruta.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c2-1">
+          <div class="comp-header" onclick="toggleComp('c2-1')">
+            <div class="comp-ico ico-v">🤖</div>
+            <span class="comp-name">Modelo YOLOv11</span>
+            <span class="comp-tag">INTELIGENCIA ARTIFICIAL</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              YOLO significa "You Only Look Once": el algoritmo analiza la imagen completa en una sola pasada, haciéndolo extremadamente rápido para detección en tiempo real. La versión 11 fue entrenada con miles de fotos de mangos buenos y dañados. Aprendió a reconocer manchas, colores extraños o deformaciones. Si detecta un defecto, envía una señal para que el separador retire la fruta.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c2-2">
+          <div class="comp-header" onclick="toggleComp('c2-2')">
+            <div class="comp-ico ico-l">📡</div>
+            <span class="comp-name">Microcontrolador ESP32</span>
+            <span class="comp-tag">CONTROL</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              Un microcontrolador del tamaño de un pulgar con WiFi y Bluetooth integrados. En la planta cumple dos funciones: recibe las decisiones del modelo de IA y activa el separador mecánico, y también trabaja con los sensores infrarrojos para contar exactamente cuántas frutas van pasando hacia el empaquetado.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c2-3">
+          <div class="comp-header" onclick="toggleComp('c2-3')">
+            <div class="comp-ico ico-o">🔦</div>
+            <span class="comp-name">Sensores Infrarrojos (IR)</span>
+            <span class="comp-tag">DETECCIÓN</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              Emiten un haz de luz infrarroja invisible al ojo humano. Cuando una fruta pasa e interrumpe ese haz, el sensor genera una señal eléctrica. El ESP32 cuenta esas señales para saber cuántas frutas han pasado y activar el sellado cuando se completa el grupo programado para cada bolsa.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-nav">
+      <button class="pnav-btn" onclick="goStep(1)">← Anterior</button>
+      <span class="pnav-counter">03 / 04</span>
+      <button class="pnav-btn next" onclick="goStep(3)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- PANEL 4: SELLADO -->
+  <div class="step-panel" id="panel-3">
+    <div class="panel-grid">
+      <div class="panel-visual">
+        <div class="scan-bar"></div>
+        <div class="img-ph">
+          <svg width="50" height="50" viewBox="0 0 50 50" fill="none"><rect x="15" y="7" width="20" height="26" rx="3" stroke="#a78bfa" stroke-width="1.5"/><line x1="11" y1="33" x2="39" y2="33" stroke="#22d3ee" stroke-width="2.5" stroke-linecap="round"/><path d="M19 41L19 49L31 49L31 41" stroke="#22d3ee" stroke-width="1.2"/><circle cx="25" cy="20" r="5" stroke="#86efac" stroke-width="1.2"/></svg>
+          <span>Imagen: selladora</span>
+        </div>
+        <div class="status-badge"><span class="sdot"></span>SELLANDO</div>
+      </div>
+      <div class="panel-content">
+        <div class="panel-meta">
+          <span class="panel-num">ETAPA 04</span>
+          <span class="panel-cat">Empaque y preservación</span>
+        </div>
+        <h3>El toque final: sellado hermético</h3>
+        <p class="panel-intro">
+          Las frutas clasificadas como aptas llegan al final del camino. Se agrupan en cantidades exactas
+          y se sellan en fundas plásticas para que no entre aire ni suciedad, manteniendo el mango fresco por mucho más tiempo.
+        </p>
+        <p class="comp-label">Componentes del sistema</p>
+
+        <div class="comp-item" id="c3-0">
+          <div class="comp-header" onclick="toggleComp('c3-0')">
+            <div class="comp-ico ico-o">🔥</div>
+            <span class="comp-name">Resistencia de Nicrom</span>
+            <span class="comp-tag">SELLADO TÉRMICO</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              El Nicrom (aleación de Níquel y Cromo) es un material que se calienta mucho cuando pasa corriente eléctrica por él. En la selladora, este alambre se presiona contra el borde de la funda plástica durante un tiempo muy preciso, derritiendo ligeramente el plástico para crear un cierre hermético. El control eléctrico es clave: demasiado calor quema la bolsa, muy poco y no sella.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c3-1">
+          <div class="comp-header" onclick="toggleComp('c3-1')">
+            <div class="comp-ico ico-c">📦</div>
+            <span class="comp-name">Empaquetado Vertical Automatizado</span>
+            <span class="comp-tag">MECANISMO</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              El sistema organiza las frutas clasificadas en grupos de cantidad exacta. Los sensores IR del ESP32 cuentan las frutas que van llegando y, cuando se completa el número programado, activan automáticamente la selladora. La bolsa se sella, cae, y el proceso vuelve a empezar para el siguiente grupo. Todo sin intervención humana.
+            </div>
+          </div>
+        </div>
+
+        <div class="comp-item" id="c3-2">
+          <div class="comp-header" onclick="toggleComp('c3-2')">
+            <div class="comp-ico ico-v">🔌</div>
+            <span class="comp-name">Fuente de Poder Dedicada</span>
+            <span class="comp-tag">ELÉCTRICO</span>
+            <span class="comp-chev">▾</span>
+          </div>
+          <div class="comp-body">
+            <div class="comp-body-in">
+              El sistema de sellado térmico consume bastante energía en picos cortos. Por eso tiene su propia fuente de alimentación dentro del gabinete, separada de la que alimenta los motores y el PLC. Esto evita que el pico de consumo del sellado interfiera con el funcionamiento de los otros sistemas.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="panel-nav">
+      <button class="pnav-btn" onclick="goStep(2)">← Anterior</button>
+      <span class="pnav-counter">04 / 04</span>
+      <button class="pnav-btn next" style="visibility:hidden">Siguiente →</button>
+    </div>
+  </div>
+
+</section>
+
+<div class="divider"></div>
+
+<!-- QUIZ -->
+<section class="quiz-section">
+  <h2 class="reveal">¿Cuánto aprendiste?</h2>
+  <p class="quiz-sub reveal rd1">Pon a prueba lo que viste sobre la Planta IA</p>
+
+  <div class="quiz-card reveal rd1">
+    <div class="quiz-q"><span class="quiz-qn">1</span>¿Qué hace el PLC Siemens LOGO! 8 en el sistema de control?</div>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="answer(this,false,'El PLC no mueve agua — eso lo hace la bomba centrífuga.')">Bombea el agua de lavado</button>
+      <button class="quiz-opt" onclick="answer(this,true,'Correcto. El PLC lee las señales de los botones y decide cuándo activar cada motor o bomba según el modo manual o automático.')">Lee señales y decide cuándo activar los motores</button>
+      <button class="quiz-opt" onclick="answer(this,false,'El calor lo genera la resistencia de nicrom, no el PLC.')">Genera calor para sellar las bolsas</button>
+      <button class="quiz-opt" onclick="answer(this,false,'Las imágenes las analiza el modelo YOLOv11, no el PLC.')">Analiza las imágenes de la cámara</button>
+    </div>
+    <div class="quiz-fb" id="fb-0"></div>
+  </div>
+
+  <div class="quiz-card reveal rd2">
+    <div class="quiz-q"><span class="quiz-qn">2</span>¿Por qué el sistema de lavado recircula el agua en lugar de usar agua nueva?</div>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="answer(this,false,'El sabor del mango no depende del agua de lavado.')">Para mejorar el sabor del mango</button>
+      <button class="quiz-opt" onclick="answer(this,true,'Exacto. Reutilizar el agua filtrada es un principio de ingeniería sostenible que puede reducir el consumo hasta en un 80%.')">Para ahorrar agua y ser más sostenibles</button>
+      <button class="quiz-opt" onclick="answer(this,false,'La velocidad de la banda es independiente del sistema hidráulico.')">Para acelerar la banda transportadora</button>
+      <button class="quiz-opt" onclick="answer(this,false,'Los sensores IR son independientes del sistema de agua.')">Para activar los sensores infrarrojos</button>
+    </div>
+    <div class="quiz-fb" id="fb-1"></div>
+  </div>
+
+  <div class="quiz-card reveal rd2">
+    <div class="quiz-q"><span class="quiz-qn">3</span>¿Qué significa YOLO en el contexto del modelo de inteligencia artificial?</div>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="answer(this,false,'No es la sigla correcta para este tipo de algoritmo.')">Yet Another Learning Operation</button>
+      <button class="quiz-opt" onclick="answer(this,false,'Aunque esa frase es popular en otro contexto, en IA tiene un significado diferente.')">You Only Live Once</button>
+      <button class="quiz-opt" onclick="answer(this,true,'¡Correcto! El algoritmo analiza la imagen completa de una sola vez, haciéndolo muy rápido para detección en tiempo real sobre la banda transportadora.')">You Only Look Once</button>
+      <button class="quiz-opt" onclick="answer(this,false,'No es la sigla utilizada en visión artificial.')">Your Optical Learning Output</button>
+    </div>
+    <div class="quiz-fb" id="fb-2"></div>
+  </div>
+
+  <div class="quiz-card reveal rd3">
+    <div class="quiz-q"><span class="quiz-qn">4</span>¿Cuál es la función de los sensores infrarrojos (IR) en la etapa de empaque?</div>
+    <div class="quiz-opts">
+      <button class="quiz-opt" onclick="answer(this,false,'La cámara es la que detecta defectos visuales, no los sensores IR.')">Detectar manchas en la fruta</button>
+      <button class="quiz-opt" onclick="answer(this,false,'El calentamiento del sellado lo hace la resistencia de nicrom.')">Calentar el plástico de la bolsa</button>
+      <button class="quiz-opt" onclick="answer(this,true,'Exactamente. Cuando una fruta interrumpe el haz infrarrojo invisible, el sensor cuenta un pulso. El ESP32 usa ese conteo para saber cuándo activar el sellado.')">Contar las frutas que pasan para activar el sellado</button>
+      <button class="quiz-opt" onclick="answer(this,false,'La comunicación entre sistemas la gestiona el PLC y el ESP32, no los sensores IR directamente.')">Enviar datos al PLC por WiFi</button>
+    </div>
+    <div class="quiz-fb" id="fb-3"></div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-glow"></div>
+  <div class="reveal">
+    <div class="footer-tag">// ESPOL — Escuela Superior Politécnica del Litoral</div>
+    <h2>El futuro no se espera.<br>Se construye.</h2>
+    <p>
+      Esta planta fue diseñada y construida por estudiantes de ingeniería que decidieron
+      entender cómo funcionan las cosas. Hoy, esos conocimientos ayudan a transformar
+      la manera en que el Ecuador procesa y distribuye sus alimentos.
+    </p>
+    <a href="https://www.espol.edu.ec" class="btn-espol">
+      Descubre más en ESPOL
+      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M2 6.5H11M7.5 3L11 6.5L7.5 10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </a>
+  </div>
+  <div class="footer-bottom">
+    <p>© 2025 ESPOL — Proyecto Planta IA</p>
+    <p>Ingeniería en Computación &amp; Electrónica</p>
+  </div>
+</footer>
+
+</main>
+
+<script>
+/* PARTICLES */
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+const pts = Array.from({length: 65}, () => ({
+  x: Math.random() * window.innerWidth,
+  y: Math.random() * window.innerHeight,
+  vx: (Math.random() - 0.5) * 0.22,
+  vy: (Math.random() - 0.5) * 0.22,
+  r: Math.random() * 1.1 + 0.4
+}));
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  pts.forEach((p, i) => {
+    p.x += p.vx; p.y += p.vy;
+    if (p.x < 0) p.x = canvas.width;
+    if (p.x > canvas.width) p.x = 0;
+    if (p.y < 0) p.y = canvas.height;
+    if (p.y > canvas.height) p.y = 0;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(34,211,238,0.5)';
+    ctx.fill();
+    for (let j = i + 1; j < pts.length; j++) {
+      const q = pts[j], d = Math.hypot(p.x - q.x, p.y - q.y);
+      if (d < 120) {
+        ctx.beginPath();
+        ctx.moveTo(p.x, p.y);
+        ctx.lineTo(q.x, q.y);
+        ctx.strokeStyle = `rgba(34,211,238,${(1 - d/120) * 0.09})`;
+        ctx.lineWidth = 0.5;
+        ctx.stroke();
+      }
+    }
+  });
+  requestAnimationFrame(draw);
+}
+draw();
+
+/* PROGRESS */
+window.addEventListener('scroll', () => {
+  const p = window.scrollY / (document.body.scrollHeight - window.innerHeight);
+  document.getElementById('progress').style.width = (p * 100) + '%';
+});
+
+/* SCROLL REVEAL */
+const io = new IntersectionObserver(e => {
+  e.forEach(x => { if (x.isIntersecting) x.target.classList.add('visible'); });
+}, { threshold: 0.1 });
+document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+/* STEP SYSTEM */
+let cur = 0;
+const TOTAL = 4;
+
+function goStep(n) {
+  cur = n;
+  document.querySelectorAll('.step-panel').forEach((p, i) => p.classList.toggle('active', i === n));
+  document.querySelectorAll('.step-tab').forEach((t, i) => t.classList.toggle('active', i === n));
+  document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i === n));
+  document.querySelectorAll('.flow-card').forEach((c, i) => c.classList.toggle('active', i === n));
+  document.getElementById('explorer').scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+
+/* ACCORDION */
+function toggleComp(id) {
+  const item = document.getElementById(id);
+  const body = item.querySelector('.comp-body');
+  const wasOpen = item.classList.contains('open');
+  item.closest('.step-panel').querySelectorAll('.comp-item').forEach(ci => {
+    ci.classList.remove('open');
+    ci.querySelector('.comp-body').style.maxHeight = '0';
+  });
+  if (!wasOpen) {
+    item.classList.add('open');
+    body.style.maxHeight = body.scrollHeight + 'px';
+  }
+}
+
+/* QUIZ */
+function answer(btn, correct, msg) {
+  const card = btn.closest('.quiz-card');
+  if (card.querySelector('.correct, .wrong')) return;
+  btn.classList.add(correct ? 'correct' : 'wrong');
+  if (!correct) {
+    card.querySelectorAll('.quiz-opt').forEach(o => {
+      if (o.getAttribute('onclick').includes('true')) o.classList.add('correct');
+    });
+  }
+  const fbId = 'fb-' + Array.from(document.querySelectorAll('.quiz-card')).indexOf(card);
+  const fb = document.getElementById(fbId);
+  if (fb) {
+    fb.textContent = (correct ? '✓ ' : '✗ ') + msg;
+    fb.style.borderLeftColor = correct ? 'var(--lime)' : '#f87171';
+    fb.style.color = correct ? 'var(--lime)' : '#f87171';
+    fb.classList.add('show');
+  }
+  card.querySelectorAll('.quiz-opt').forEach(o => o.style.pointerEvents = 'none');
+}
+</script>
+</body>
+</html>
